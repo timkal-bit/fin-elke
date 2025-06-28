@@ -528,15 +528,7 @@ const FinanzplanungElke = () => {
                   </div>
                   
                   <div className="kpi-card">
-                    <div className="kpi-icon">🛡️</div>
-                    <div className="kpi-content">
-                      <h3>Liquiditätspuffer</h3>
-                      <div className="kpi-value">{Math.round(projection.kpis.liquidityBuffer)} Monate</div>
-                    </div>
-                  </div>
-                  
-                  <div className="kpi-card">
-                    <div className="kpi-icon">📅</div>
+                    <div className="kpi-icon"></div>
                     <div className="kpi-content">
                       <h3>Deckung bis Jahr</h3>
                       <div className="kpi-value">
@@ -725,84 +717,172 @@ const FinanzplanungElke = () => {
             )}
           </div>
         </div>
-      </main>
 
-      {/* Transparenz-Panel */}
-      <button 
-        className="transparency-toggle"
-        onClick={() => setShowTransparency(!showTransparency)}
-      >
-        {showTransparency ? '📖 Methodik verbergen' : '📖 Methodik & Berechnung'}
-      </button>
+        {/* Methodik & Berechnung */}
+        <div className="expandable-section">
+          <button 
+            className={`section-toggle ${showTransparency ? 'active' : ''}`}
+            onClick={() => setShowTransparency(!showTransparency)}
+          >
+            <span>📖 Methodik & Berechnung</span>
+            <span className={`toggle-icon ${showTransparency ? 'expanded' : ''}`}>▼</span>
+          </button>
+          
+          {showTransparency && (
+            <div className="section-content">
+              {/* Steuerliche Hinweise */}
+              <div className="form-section info-section">
+                <h2>📋 Steuerliche Berechnung</h2>
+                <div className="tax-info">
+                  <div className="tax-info-item">
+                    <h4>🧮 Automatische Steuerberechnung</h4>
+                    <p>Das System berechnet automatisch Einkommensteuer und Solidaritätszuschlag basierend auf dem deutschen Steuertarif 2024/2025.</p>
+                  </div>
+                  
+                  <div className="tax-info-item">
+                    <h4>🏥 Krankenversicherung</h4>
+                    <p>GKV-Beiträge werden automatisch berechnet (14,6% + 1,3% Zusatzbeitrag). Bei geringem Einkommen gilt das Mindesteinkommen von 1.131,67 € monatlich.</p>
+                  </div>
+                  
+                  <div className="tax-info-item">
+                    <h4>🏠 Immobilieneinkünfte</h4>
+                    <p>Mieteinnahmen werden separat versteuert. AfA-Abschreibungen reduzieren die Steuerlast, nicht aber den Cashflow.</p>
+                  </div>
+                </div>
+              </div>
 
-      {showTransparency && (
-        <div className="transparency-panel">
-          <div className="transparency-content">
-            <div className="transparency-header">
-              <h2>Berechnungsmethodik</h2>
-              <button 
-                className="transparency-close"
-                onClick={() => setShowTransparency(false)}
-                aria-label="Schließen"
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div className="methodology-section">
-              <h3>🧮 Einkommensteuer</h3>
-              <p>Basiert auf dem deutschen Einkommensteuertarif 2024/2025:</p>
-              <ul>
-                <li>Grundfreibetrag: 11.604 €</li>
-                <li>Progressionszonen mit entsprechenden Formeln</li>
-                <li>Solidaritätszuschlag: 5,5% (ab Freigrenze)</li>
-              </ul>
-            </div>
+              {/* Ausgaben-Analyse */}
+              <div className="form-section info-section">
+                <h2>📊 Ausgaben-Analyse</h2>
+                <div className="expense-analysis">
+                  <div className="analysis-item">
+                    <h4>📈 Inflationsanpassung</h4>
+                    <p>Variable Kosten (Lebensmittel, Freizeit) werden jährlich um die Ausgabenwachstumsrate angepasst, um der Inflation zu folgen.</p>
+                  </div>
+                  
+                  <div className="analysis-item">
+                    <h4>🏠 Wohnkosten-Anteil</h4>
+                    <p>Empfehlung: max. 30-40% der Gesamtausgaben für Wohnkosten</p>
+                  </div>
+                  
+                  <div className="analysis-item">
+                    <h4>⚖️ Fix- vs. Variable Kosten</h4>
+                    <p>Ein höherer Anteil variabler Kosten bietet mehr Flexibilität bei wirtschaftlichen Schwankungen</p>
+                  </div>
+                </div>
+              </div>
 
-            <div className="methodology-section">
-              <h3>🏥 Gesetzliche Krankenversicherung</h3>
-              <p>Berechnung nach aktuellen Sätzen:</p>
-              <ul>
-                <li>Allgemeiner Beitragssatz: 14,6%</li>
-                <li>Zusatzbeitrag: 1,3% (durchschnittlich)</li>
-                <li>Mindesteinkommen: 1.131,67 € monatlich</li>
-                <li>Beitragsbemessungsgrenze: 5.175 € monatlich</li>
-              </ul>
-            </div>
+              {/* Immobilien-Tipps */}
+              <div className="form-section info-section">
+                <h2>💡 Immobilien-Analyse</h2>
+                <div className="tips-grid">
+                  <div className="tip-item">
+                    <h4>🎯 Rendite-Bewertung</h4>
+                    <p>
+                      <strong>Brutto-Mietrendite:</strong> (Jahresmiete ÷ Kaufpreis) × 100
+                      <br />
+                      <strong>Netto-Mietrendite:</strong> Nach Abzug aller Kosten
+                      <br />
+                      <small>Richtwerte: 4-6% brutto, 2-4% netto</small>
+                    </p>
+                  </div>
+                  
+                  <div className="tip-item">
+                    <h4>🔧 Instandhaltungskosten</h4>
+                    <p>
+                      Faustregeln für jährliche Instandhaltung:
+                      <br />• Neubau: 0,5-1% des Immobilienwerts
+                      <br />• Bestand: 1,5-2,5% des Immobilienwerts
+                      <br />• Altbau: 2-4% des Immobilienwerts
+                    </p>
+                  </div>
+                  
+                  <div className="tip-item">
+                    <h4>📊 AfA-Optimierung</h4>
+                    <p>
+                      <strong>Standard-AfA:</strong> 2% linear über 50 Jahre
+                      <br />
+                      <strong>Denkmalschutz:</strong> Bis zu 9% in ersten 8 Jahren
+                      <br />
+                      <small>AfA reduziert nur Steuern, nicht den Cashflow!</small>
+                    </p>
+                  </div>
+                  
+                  <div className="tip-item">
+                    <h4>🏠 Diversifikation</h4>
+                    <p>
+                      Risiken streuen durch:
+                      <br />• Verschiedene Lagen
+                      <br />• Unterschiedliche Objekttypen
+                      <br />• Mehrere Mieter
+                      <br />• Mix aus Wohn- und Gewerbeimmobilien
+                    </p>
+                  </div>
+                </div>
+              </div>
 
-            <div className="methodology-section">
-              <h3>🏠 Immobilien-AfA</h3>
-              <p>Abschreibung für Abnutzung:</p>
-              <ul>
-                <li>Basis: Kaufpreis minus Grundstückswert</li>
-                <li>Standard-Satz: 2% linear</li>
-                <li>Nur steuerlich wirksam, nicht cashflow-relevant</li>
-              </ul>
-            </div>
+              {/* Technische Details */}
+              <div className="form-section info-section">
+                <h2>🔢 Technische Berechnungsdetails</h2>
+                
+                <div className="methodology-section">
+                  <h3>💰 Einkommensteuer-Berechnung</h3>
+                  <p>Progressiver Steuertarif 2024/2025:</p>
+                  <ul>
+                    <li>Grundfreibetrag: 11.604 € jährlich</li>
+                    <li>Eingangssteuersatz: 14%</li>
+                    <li>Spitzensteuersatz: 42% (ab 66.761 €)</li>
+                    <li>Reichensteuersatz: 45% (ab 277.826 €)</li>
+                    <li>Solidaritätszuschlag: 5,5% (ab Freigrenze)</li>
+                  </ul>
+                </div>
 
-            <div className="methodology-section">
-              <h3>📈 Inflations- und Wachstumsanpassungen</h3>
-              <ul>
-                <li>Einnahmen: Jährliche Steigerung nach Einkommenswachstumsrate</li>
-                <li>Ausgaben: Jährliche Steigerung nach Ausgabenwachstumsrate</li>
-                <li>Immobilienwerte: Standardmäßig 2% p.a.</li>
-                <li>Cash-Zinsen: Monatlich auf aktuellen Bestand</li>
-              </ul>
-            </div>
+                <div className="methodology-section">
+                  <h3>🏥 Gesetzliche Krankenversicherung</h3>
+                  <p>Berechnung nach aktuellen Sätzen:</p>
+                  <ul>
+                    <li>Allgemeiner Beitragssatz: 14,6%</li>
+                    <li>Zusatzbeitrag: 1,3% (durchschnittlich)</li>
+                    <li>Mindesteinkommen: 1.131,67 € monatlich</li>
+                    <li>Beitragsbemessungsgrenze: 5.175 € monatlich</li>
+                  </ul>
+                </div>
 
-            <div className="methodology-section">
-              <h3>🎯 Stress-Tests</h3>
-              <p>Verschiedene Szenarien werden automatisch berechnet:</p>
-              <ul>
-                <li>Basisszenario: Aktuelle Annahmen</li>
-                <li>Inflationsszenario: +2% Inflation</li>
-                <li>Niedrigzins: -1% Sparrendite</li>
-                <li>Kombiniert: Beide Faktoren gemeinsam</li>
-              </ul>
+                <div className="methodology-section">
+                  <h3>🏠 Immobilien-AfA</h3>
+                  <p>Abschreibung für Abnutzung:</p>
+                  <ul>
+                    <li>Basis: Kaufpreis minus Grundstückswert</li>
+                    <li>Standard-Satz: 2% linear</li>
+                    <li>Nur steuerlich wirksam, nicht cashflow-relevant</li>
+                  </ul>
+                </div>
+
+                <div className="methodology-section">
+                  <h3>📈 Inflations- und Wachstumsanpassungen</h3>
+                  <ul>
+                    <li>Einnahmen: Jährliche Steigerung nach Einkommenswachstumsrate</li>
+                    <li>Ausgaben: Jährliche Steigerung nach Ausgabenwachstumsrate</li>
+                    <li>Immobilienwerte: Standardmäßig 2% p.a.</li>
+                    <li>Cash-Zinsen: Monatlich auf aktuellen Bestand</li>
+                  </ul>
+                </div>
+
+                <div className="methodology-section">
+                  <h3>🎯 Stress-Tests</h3>
+                  <p>Verschiedene Szenarien werden automatisch berechnet:</p>
+                  <ul>
+                    <li>Basisszenario: Aktuelle Annahmen</li>
+                    <li>Inflationsszenario: +2% Inflation</li>
+                    <li>Niedrigzins: -1% Sparrendite</li>
+                    <li>Kombiniert: Beide Faktoren gemeinsam</li>
+                  </ul>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
         </div>
-      )}
+      </main>
     </div>
   );
 };

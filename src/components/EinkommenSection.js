@@ -47,70 +47,61 @@ const EinkommenSection = ({ data, onChange }) => {
 
   return (
     <div className="income-section">
-      {/* Übersicht */}
-      <div className="form-section">
-        <h2>💰 Einnahmen-Übersicht</h2>
-        <div className="income-summary">
-          <div className="summary-item">
-            <span className="summary-label">Monatliche Einnahmen:</span>
-            <span className="summary-value">{formatters.currency(totalMonthlyIncome)}</span>
-          </div>
-          <div className="summary-item">
-            <span className="summary-label">Jährliche Einnahmen:</span>
-            <span className="summary-value">{formatters.currency(totalMonthlyIncome * 12)}</span>
-          </div>
-          <div className="summary-item">
-            <span className="summary-label">Einmalige Einnahmen (gesamt):</span>
-            <span className="summary-value">{formatters.currency(totalOneTimeIncome)}</span>
-          </div>
-        </div>
-      </div>
-
       {/* Regelmäßige Einnahmen */}
       <div className="form-section">
         <h2>📅 Regelmäßige Einnahmen</h2>
         
-        <div className="form-group">
-          <label htmlFor="pension">
-            Rente (monatlich)
-            <div className="tooltip">
-              ℹ️
-              <span className="tooltiptext">
-                Gesetzliche und private Rente, Pensionen. Wird automatisch um die Einkommenswachstumsrate angepasst.
-              </span>
+        <div className="form-group-with-calculation">
+          <div className="form-group form-group-narrow">
+            <label htmlFor="pension">
+              Rente (monatlich)
+              <div className="tooltip">
+                ℹ️
+                <span className="tooltiptext">
+                  Gesetzliche und private Rente, Pensionen. Wird automatisch um die Einkommenswachstumsrate angepasst.
+                </span>
+              </div>
+            </label>
+            <div className="input-with-currency">
+              <input
+                id="pension"
+                type="number"
+                value={data.pension || 0}
+                onChange={(e) => handleRegularIncomeChange('pension', e.target.value)}
+                placeholder="z.B. 1800"
+              />
+              <span className="currency-symbol">€</span>
             </div>
-          </label>
-          <div className="input-with-currency">
-            <input
-              id="pension"
-              type="number"
-              value={data.pension || 0}
-              onChange={(e) => handleRegularIncomeChange('pension', e.target.value)}
-              placeholder="z.B. 1800"
-            />
-            <span className="currency-symbol">€</span>
+          </div>
+          <div className="calculation-display">
+            {formatters.currency((data.pension || 0) * 12)}/Jahr
           </div>
         </div>
 
-        <div className="form-group">
-          <label htmlFor="otherIncome">
-            Sonstige Nebeneinkünfte (monatlich)
-            <div className="tooltip">
-              ℹ️
-              <span className="tooltiptext">
-                Minijobs, Honorare, Zinsen, Dividenden etc. Wird um die Einkommenswachstumsrate angepasst.
-              </span>
+        <div className="form-group-with-calculation">
+          <div className="form-group form-group-narrow">
+            <label htmlFor="otherIncome">
+              Sonstige Nebeneinkünfte (monatlich)
+              <div className="tooltip">
+                ℹ️
+                <span className="tooltiptext">
+                  Minijobs, Honorare, Zinsen, Dividenden etc. Wird um die Einkommenswachstumsrate angepasst.
+                </span>
+              </div>
+            </label>
+            <div className="input-with-currency">
+              <input
+                id="otherIncome"
+                type="number"
+                value={data.otherIncome || 0}
+                onChange={(e) => handleRegularIncomeChange('otherIncome', e.target.value)}
+                placeholder="z.B. 500"
+              />
+              <span className="currency-symbol">€</span>
             </div>
-          </label>
-          <div className="input-with-currency">
-            <input
-              id="otherIncome"
-              type="number"
-              value={data.otherIncome || 0}
-              onChange={(e) => handleRegularIncomeChange('otherIncome', e.target.value)}
-              placeholder="z.B. 500"
-            />
-            <span className="currency-symbol">€</span>
+          </div>
+          <div className="calculation-display">
+            {formatters.currency((data.otherIncome || 0) * 12)}/Jahr
           </div>
         </div>
 
@@ -217,26 +208,6 @@ const EinkommenSection = ({ data, onChange }) => {
         )}
       </div>
 
-      {/* Steuerliche Hinweise */}
-      <div className="form-section info-section">
-        <h2>📋 Steuerliche Hinweise</h2>
-        <div className="tax-info">
-          <div className="tax-info-item">
-            <h4>🧮 Automatische Steuerberechnung</h4>
-            <p>Das System berechnet automatisch Einkommensteuer und Solidaritätszuschlag basierend auf dem deutschen Steuertarif 2024/2025.</p>
-          </div>
-          
-          <div className="tax-info-item">
-            <h4>🏥 Krankenversicherung</h4>
-            <p>GKV-Beiträge werden automatisch berechnet (14,6% + 1,3% Zusatzbeitrag). Bei geringem Einkommen gilt das Mindesteinkommen von 1.131,67 € monatlich.</p>
-          </div>
-          
-          <div className="tax-info-item">
-            <h4>🏠 Immobilieneinkünfte</h4>
-            <p>Mieteinnahmen werden separat versteuert. AfA-Abschreibungen reduzieren die Steuerlast, nicht aber den Cashflow.</p>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

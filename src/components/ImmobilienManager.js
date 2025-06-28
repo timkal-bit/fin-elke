@@ -112,41 +112,6 @@ const ImmobilienManager = ({ properties, onChange }) => {
 
   return (
     <div className="immobilien-section">
-      {/* Übersicht */}
-      <div className="form-section">
-        <h2>🏠 Immobilien-Portfolio Übersicht</h2>
-        <div className="portfolio-summary">
-          <div className="summary-grid">
-            <div className="summary-item">
-              <span className="summary-label">Anzahl Objekte:</span>
-              <span className="summary-value">{properties.length}</span>
-            </div>
-            <div className="summary-item">
-              <span className="summary-label">Gesamtwert:</span>
-              <span className="summary-value">{formatters.currency(totalPropertyValue)}</span>
-            </div>
-            <div className="summary-item">
-              <span className="summary-label">Monatliche Mieteinnahmen:</span>
-              <span className="summary-value">{formatters.currency(totalMonthlyRent)}</span>
-            </div>
-            <div className="summary-item">
-              <span className="summary-label">Jährliche Instandhaltung:</span>
-              <span className="summary-value">{formatters.currency(totalAnnualMaintenance)}</span>
-            </div>
-            <div className="summary-item">
-              <span className="summary-label">Jährliche AfA (steuerlich):</span>
-              <span className="summary-value">{formatters.currency(totalAnnualAfa)}</span>
-            </div>
-            <div className="summary-item">
-              <span className="summary-label">Brutto-Mietrendite:</span>
-              <span className="summary-value">
-                {totalPropertyValue > 0 ? formatters.percentage((totalMonthlyRent * 12) / totalPropertyValue) : '0%'}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Immobilienliste */}
       <div className="form-section">
         <div className="section-header">
@@ -481,51 +446,37 @@ const ImmobilienManager = ({ properties, onChange }) => {
         )}
       </div>
 
-      {/* Hinweise und Tipps */}
-      <div className="form-section info-section">
-        <h2>💡 Immobilien-Tipps</h2>
-        <div className="tips-grid">
-          <div className="tip-item">
-            <h4>🎯 Rendite-Bewertung</h4>
-            <p>
-              <strong>Brutto-Mietrendite:</strong> (Jahresmiete ÷ Kaufpreis) × 100
-              <br />
-              <strong>Netto-Mietrendite:</strong> Nach Abzug aller Kosten
-              <br />
-              <small>Richtwerte: 4-6% brutto, 2-4% netto</small>
-            </p>
-          </div>
-          
-          <div className="tip-item">
-            <h4>🔧 Instandhaltungskosten</h4>
-            <p>
-              Faustregeln für jährliche Instandhaltung:
-              <br />• Neubau: 0,5-1% des Immobilienwerts
-              <br />• Bestand: 1,5-2,5% des Immobilienwerts
-              <br />• Altbau: 2-4% des Immobilienwerts
-            </p>
-          </div>
-          
-          <div className="tip-item">
-            <h4>📊 AfA-Optimierung</h4>
-            <p>
-              <strong>Standard-AfA:</strong> 2% linear über 50 Jahre
-              <br />
-              <strong>Denkmalschutz:</strong> Bis zu 9% in ersten 8 Jahren
-              <br />
-              <small>AfA reduziert nur Steuern, nicht den Cashflow!</small>
-            </p>
-          </div>
-          
-          <div className="tip-item">
-            <h4>🏠 Diversifikation</h4>
-            <p>
-              Risiken streuen durch:
-              <br />• Verschiedene Lagen
-              <br />• Unterschiedliche Objekttypen
-              <br />• Mehrere Mieter
-              <br />• Mix aus Wohn- und Gewerbeimmobilien
-            </p>
+      {/* Portfolio-Übersicht */}
+      <div className="form-section">
+        <h2>🏠 Immobilien-Portfolio Übersicht</h2>
+        <div className="portfolio-summary">
+          <div className="summary-grid">
+            <div className="summary-item">
+              <span className="summary-label">Anzahl Objekte:</span>
+              <span className="summary-value">{properties.length}</span>
+            </div>
+            <div className="summary-item">
+              <span className="summary-label">Gesamtwert:</span>
+              <span className="summary-value">{formatters.currency(totalPropertyValue)}</span>
+            </div>
+            <div className="summary-item">
+              <span className="summary-label">Monatliche Mieteinnahmen:</span>
+              <span className="summary-value">{formatters.currency(totalMonthlyRent)}</span>
+            </div>
+            <div className="summary-item">
+              <span className="summary-label">Jährliche Instandhaltung:</span>
+              <span className="summary-value">{formatters.currency(totalAnnualMaintenance)}</span>
+            </div>
+            <div className="summary-item">
+              <span className="summary-label">Jährliche AfA (steuerlich):</span>
+              <span className="summary-value">{formatters.currency(totalAnnualAfa)}</span>
+            </div>
+            <div className="summary-item">
+              <span className="summary-label">Brutto-Mietrendite:</span>
+              <span className="summary-value">
+                {totalPropertyValue > 0 ? formatters.percentage((totalMonthlyRent * 12) / totalPropertyValue) : '0%'}
+              </span>
+            </div>
           </div>
         </div>
       </div>

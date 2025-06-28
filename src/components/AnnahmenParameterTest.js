@@ -66,7 +66,16 @@ const AnnahmenParameterTest = ({ data, initialCash, onChange, onInitialCashChang
           </div>
           
           <div className="form-group">
-            <label>Sparzinsen</label>
+            <label>
+              Sparzinsen (Kapitalmarktrendite)
+              <div className="tooltip">
+                ℹ️
+                <span className="tooltiptext">
+                  Erwartete jährliche Rendite für Ihr Kapital (Tagesgeld, Festgeld, ETFs, etc.). 
+                  Diese wird auf verfügbare Liquidität angewendet.
+                </span>
+              </div>
+            </label>
             <div className="input-with-percent">
               <input
                 type="number"
