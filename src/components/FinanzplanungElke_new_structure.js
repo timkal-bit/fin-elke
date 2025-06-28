@@ -198,151 +198,154 @@ const FinanzplanungElke = () => {
       tooltip: {
         mode: 'index',
         intersect: false,
-        backgroundColor: 'rgba(44, 44, 46, 0.95)',
+        backgroundColor: 'rgba(28, 28, 30, 0.95)',
         titleColor: '#ffffff',
         bodyColor: '#ffffff',
-        borderColor: '#48484a',
-        borderWidth: 1,
-        callbacks: {
-          label: function(context) {
-            return `${context.dataset.label}: ${formatters.currency(context.parsed.y)}`;
-          }
-        }
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+        borderWidth: 1
       }
-    },
-    interaction: {
-      mode: 'nearest',
-      axis: 'x',
-      intersect: false
     },
     scales: {
       x: {
         display: true,
         grid: {
-          color: '#48484a',
-          lineWidth: 1
+          color: 'rgba(255, 255, 255, 0.1)'
         },
         ticks: {
-          color: '#ffffff',
-          font: {
-            size: 12
-          }
+          color: '#ffffff'
         }
       },
       y: {
         display: true,
         grid: {
-          color: '#48484a',
-          lineWidth: 1
+          color: 'rgba(255, 255, 255, 0.1)'
         },
         ticks: {
           color: '#ffffff',
-          font: {
-            size: 12
-          },
           callback: function(value) {
             return formatters.currency(value);
           }
         }
       }
+    },
+    interaction: {
+      mode: 'index',
+      intersect: false
+    },
+    elements: {
+      point: {
+        radius: 0,
+        hoverRadius: 6
+      }
     }
   };
 
-  // Jährliche Zusammenfassung für Tabelle
+  // Jahreszusammenfassung berechnen
   const yearlyData = useMemo(() => {
-    if (!projection.monthlyResults || projection.monthlyResults.length === 0) return [];
-    
-    const years = [];
+    if (!projection.monthlyResults || projection.monthlyResults.length === 0) {
+      return [];
+    }
+
     const currentYear = new Date().getFullYear();
+    const years = [];
     
-    for (let year = 0; year < Math.ceil(projection.monthlyResults.length / 12); year++) {
-      const startIndex = year * 12;
-      const endIndex = Math.min((year + 1) * 12 - 1, projection.monthlyResults.length - 1);
+    for (let yearIndex = 0; yearIndex < Math.floor(timeRange / 12); yearIndex++) {
+      const startMonthIndex = yearIndex * 12;
+      const endMonthIndex = Math.min((yearIndex + 1) * 12 - 1, projection.monthlyResults.length - 1);
       
-      if (startIndex < projection.monthlyResults.length) {
-        const startData = projection.monthlyResults[startIndex];
-        const endData = projection.monthlyResults[endIndex];
-        
-        // Berechne Jahreswerte
-        const yearlyIncome = projection.monthlyResults
-          .slice(startIndex, endIndex + 1)
-          .reduce((sum, month) => sum + (month.totalIncome || 0), 0);
-          
-        const yearlyExpenses = projection.monthlyResults
-          .slice(startIndex, endIndex + 1)
-          .reduce((sum, month) => sum + (month.totalExpenses || 0), 0);
-        
-        years.push({
-          year: currentYear + year,
-          age: currentAge + year,
-          startBalance: startData.cashBalance || 0,
-          endBalance: endData.cashBalance || 0,
-          totalIncome: yearlyIncome,
-          totalExpenses: yearlyExpenses,
-          netWorth: endData.netWorth || 0,
-          propertyValue: endData.totalPropertyValue || 0
-        });
+      if (startMonthIndex >= projection.monthlyResults.length) break;
+      
+      const startMonth = projection.monthlyResults[startMonthIndex];
+      const endMonth = projection.monthlyResults[endMonthIndex];
+      
+      // Jahreseinnahmen und -ausgaben berechnen
+      let totalIncome = 0;
+      let totalExpenses = 0;
+      
+      for (let monthIndex = startMonthIndex; monthIndex <= endMonthIndex && monthIndex < projection.monthlyResults.length; monthIndex++) {
+        const month = projection.monthlyResults[monthIndex];
+        totalIncome += (month.income?.total || 0);
+        totalExpenses += (month.expenses?.total || 0);
       }
+      
+      years.push({
+        year: currentYear + yearIndex,
+        age: currentAge + yearIndex,
+        startBalance: startMonth.cashBalance || 0,
+        endBalance: endMonth.cashBalance || 0,
+        totalIncome,
+        totalExpenses,
+        netWorth: endMonth.netWorth || 0,
+        propertyValue: endMonth.propertyValue || 0
+      });
     }
     
     return years;
-  }, [projection, currentAge]);
+  }, [projection, timeRange, currentAge]);
 
   return (
-    <div className="finanzplanung-container">
-      <header className="header">
-        <h1>💰 Finanzplanung</h1>
-        <div className="header-controls">
-          <div className="age-input-container">
-            <label htmlFor="current-age">Aktuelles Alter:</label>
-            <input
-              id="current-age"
-              type="number"
-              min="18"
-              max="100"
-              value={currentAge}
-              onChange={(e) => setCurrentAge(parseInt(e.target.value) || 65)}
-              className="age-input"
-            />
-          </div>
-          <div className="time-range-container">
-            <label htmlFor="time-range">Zeitraum:</label>
-            <select
-              id="time-range"
-              value={timeRange}
-              onChange={(e) => setTimeRange(parseInt(e.target.value))}
-              className="time-range-select"
-            >
-              <option value={60}>5 Jahre</option>
-              <option value={120}>10 Jahre</option>
-              <option value={180}>15 Jahre</option>
-              <option value={240}>20 Jahre</option>
-              <option value={300}>25 Jahre</option>
-              <option value={360}>30 Jahre</option>
-            </select>
+    <div className="finanzplanung-elke">
+      {/* Header */}
+      <header className="app-header">
+        <div className="header-content">
+          <h1 className="app-title">Finanzplanung Elke</h1>
+          <div className="header-controls">
+            <div className="age-input-group">
+              <label htmlFor="currentAge">Aktuelles Alter:</label>
+              <input
+                id="currentAge"
+                type="number"
+                value={currentAge}
+                onChange={(e) => setCurrentAge(Number(e.target.value))}
+                min="18"
+                max="100"
+                className="age-input"
+              />
+              <span>Jahre</span>
+            </div>
+            <div className="horizon-selector-group">
+              <label htmlFor="timeRange">Planungshorizont:</label>
+              <input
+                id="timeRange"
+                type="number"
+                value={Math.floor(timeRange / 12)}
+                onChange={(e) => setTimeRange(Number(e.target.value) * 12)}
+                min="1"
+                max="30"
+                className="horizon-input"
+              />
+              <span>Jahre</span>
+            </div>
+            <div className="final-age-display">
+              <span>Alter am Ende:</span>
+              <strong>{currentAge + Math.floor(timeRange / 12)} Jahre</strong>
+            </div>
           </div>
         </div>
       </header>
 
       <main className="main-content">
-        {/* KPIs und Chart-Bereich */}
-        <div className="dashboard-section">
-          {/* KPI Cards */}
+        {/* KPIs und Charts direkt nach Header */}
+        <div className="overview-section">
+          {/* KPI-Kacheln */}
           <div className="kpi-grid">
             <div className="kpi-card">
-              <div className="kpi-icon">💸</div>
+              <div className="kpi-icon">💶</div>
               <div className="kpi-content">
-                <h3>Ø Cashflow/Monat</h3>
+                <h3>Verfügbares monatliches Budget</h3>
                 <div className="kpi-value">{formatters.currency(projection.kpis.averageMonthlyCashflow)}</div>
               </div>
             </div>
             
             <div className="kpi-card">
-              <div className="kpi-icon">🛡️</div>
+              <div className="kpi-icon">📅</div>
               <div className="kpi-content">
-                <h3>Reichweite</h3>
+                <h3>Deckung bis Jahr</h3>
                 <div className="kpi-value">
-                  {projection.kpis.coverageUntilYear === 'N/A' ? 'Unbegrenzt' : `Bis ${projection.kpis.coverageUntilYear}`}
+                  {projection.kpis.coverageUntilYear !== 'N/A' && projection.kpis.coverageUntilYear !== '10+' 
+                    ? new Date().getFullYear() + parseInt(projection.kpis.coverageUntilYear) - 1
+                    : new Date().getFullYear() + Math.floor(timeRange / 12)
+                  }
                 </div>
               </div>
             </div>

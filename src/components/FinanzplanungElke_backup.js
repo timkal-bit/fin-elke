@@ -18,7 +18,6 @@ import EinkommenSection from './EinkommenSection';
 import AusgabenSection from './AusgabenSection';
 import ImmobilienManager from './ImmobilienManager';
 import AnnahmenParameterTest from './AnnahmenParameterTest';
-// import ExpenseSankeyChart from './ExpenseSankeyChart';
 import './FinanzplanungElke.css';
 
 // Chart.js registrieren
@@ -36,18 +35,11 @@ ChartJS.register(
 );
 
 const FinanzplanungElke = () => {
-  const [activeTab, setActiveTab] = useState('overview');
   const [timeRange, setTimeRange] = useState(120); // 10 Jahre default
   const [showTransparency, setShowTransparency] = useState(false);
   const [currentAge, setCurrentAge] = useState(65); // Aktuelles Alter
   const [showYearlyTable, setShowYearlyTable] = useState(false); // Jahreszusammenfassung
-  const [expandedSections, setExpandedSections] = useState({
-    overview: true,
-    income: false,
-    expenses: false,
-    properties: false,
-    assumptions: false
-  });
+  const [activeTab, setActiveTab] = useState('income'); // Tab-Navigation
   
   // Hauptdatenstruktur
   const [financialData, setFinancialData] = useState({
@@ -185,102 +177,561 @@ const FinanzplanungElke = () => {
     };
   }, [projection, financialData.assumptions.inflationRate]);
 
-  // Chart-Daten für Ausgabenkategorien (Kreisdiagramme)
-  const expenseChartData = useMemo(() => {
-    if (!projection.monthlyResults || projection.monthlyResults.length === 0) {
-      return { monthly: null, yearly: null };
-    }
-
-    const lastMonthResult = projection.monthlyResults[projection.monthlyResults.length - 1];
-    if (!lastMonthResult || !lastMonthResult.expenses) return { monthly: null, yearly: null };
-
-    const monthlyExpenses = [
-      { label: 'Wohnen', value: lastMonthResult.expenses.housing || 0 },
-      { label: 'GKV', value: lastMonthResult.expenses.healthInsurance || 0 },
-      { label: 'Versicherungen', value: lastMonthResult.expenses.otherInsurance || 0 },
-      { label: 'Lebensmittel', value: lastMonthResult.expenses.groceries || 0 },
-      { label: 'Freizeit', value: lastMonthResult.expenses.leisure || 0 },
-      { label: 'Immobilien', value: lastMonthResult.expenses.propertyMaintenance || 0 },
-      { label: 'Steuern', value: lastMonthResult.expenses.tax || 0 }
-    ];
-
-    const yearlyExpenses = monthlyExpenses.map(item => ({
-      ...item,
-      value: item.value * 12
-    }));
-
-    const colors = [
-      '#FF3B30', '#FF9500', '#FFCC00', '#34C759', 
-      '#5AC8FA', '#AF52DE', '#FF2D92'
-    ];
-
-    const monthlyTotal = monthlyExpenses.reduce((sum, item) => sum + item.value, 0);
-    const yearlyTotal = yearlyExpenses.reduce((sum, item) => sum + item.value, 0);
-
-    return {
-      monthly: {
-        labels: monthlyExpenses.map(item => item.label),
-        datasets: [{
-          data: monthlyExpenses.map(item => item.value),
-          backgroundColor: colors,
-          borderWidth: 2,
-          borderColor: '#ffffff'
-        }],
-        total: monthlyTotal
+  // Chart-Optionen
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'top',
+        labels: {
+          color: '#ffffff',
+          padding: 20,
+          font: {
+            size: 14
+          }
+        }
       },
-      yearly: {
-        labels: yearlyExpenses.map(item => item.label),
-        datasets: [{
-          data: yearlyExpenses.map(item => item.value),
-          backgroundColor: colors,
-          borderWidth: 2,
-          borderColor: '#ffffff'
-        }],
-        total: yearlyTotal
+      title: {
+        display: false
+      },
+      tooltip: {
+        mode: 'index',
+        intersect: false,
+        backgroundColor: 'rgba(44, 44, 46, 0.95)',
+        titleColor: '#ffffff',
+        bodyColor: '#ffffff',
+        borderColor: '#48484a',
+        borderWidth: 1,
+        callbacks: {
+          label: function(context) {
+            return `${context.dataset.label}: ${formatters.currency(context.parsed.y)}`;
+          }
+        }
       }
-    };
-  }, [projection]);
-
-  // Jahreszusammenfassungs-Daten
-  const yearlyData = useMemo(() => {
-    if (!projection.monthlyResults || projection.monthlyResults.length === 0) {
-      return [];
+    },
+    interaction: {
+      mode: 'nearest',
+      axis: 'x',
+      intersect: false
+    },
+    scales: {
+      x: {
+        display: true,
+        grid: {
+          color: '#48484a',
+          lineWidth: 1
+        },
+        ticks: {
+          color: '#ffffff',
+          font: {
+            size: 12
+          }
+        }
+      },
+      y: {
+        display: true,
+        grid: {
+          color: '#48484a',
+          lineWidth: 1
+        },
+        ticks: {
+          color: '#ffffff',
+          font: {
+            size: 12
+          },
+          callback: function(value) {
+            return formatters.currency(value);
+          }
+        }
+      }
     }
+  };
 
-    const currentYear = new Date().getFullYear();
-    const yearlyResults = [];
+  // Jährliche Zusammenfassung für Tabelle
+  const yearlyData = useMemo(() => {
+    if (!projection.monthlyResults || projection.monthlyResults.length === 0) return [];
     
-    for (let yearIndex = 0; yearIndex < Math.ceil(projection.monthlyResults.length / 12); yearIndex++) {
-      const yearStartIndex = yearIndex * 12;
-      const yearEndIndex = Math.min(yearStartIndex + 11, projection.monthlyResults.length - 1);
+    const years = [];
+    const currentYear = new Date().getFullYear();
+    
+    for (let year = 0; year < Math.ceil(projection.monthlyResults.length / 12); year++) {
+      const startIndex = year * 12;
+      const endIndex = Math.min((year + 1) * 12 - 1, projection.monthlyResults.length - 1);
       
-      if (yearEndIndex >= 0 && projection.monthlyResults[yearEndIndex]) {
-        const yearResult = projection.monthlyResults[yearEndIndex];
-        const startYearResult = projection.monthlyResults[yearStartIndex] || yearResult;
+      if (startIndex < projection.monthlyResults.length) {
+        const startData = projection.monthlyResults[startIndex];
+        const endData = projection.monthlyResults[endIndex];
         
-        yearlyResults.push({
-          year: currentYear + yearIndex,
-          age: currentAge + yearIndex,
-          startBalance: startYearResult.cashBalance || 0,
-          endBalance: yearResult.cashBalance || 0,
-          totalIncome: (yearResult.income?.pension || 0) * 12 + 
-                      (yearResult.income?.otherIncome || 0) * 12 + 
-                      (yearResult.income?.propertyRent || 0) * 12,
-          totalExpenses: (yearResult.expenses?.housing || 0) * 12 +
-                        (yearResult.expenses?.healthInsurance || 0) * 12 +
-                        (yearResult.expenses?.otherInsurance || 0) * 12 +
-                        (yearResult.expenses?.groceries || 0) * 12 +
-                        (yearResult.expenses?.leisure || 0) * 12 +
-                        (yearResult.expenses?.propertyMaintenance || 0) * 12 +
-                        (yearResult.expenses?.tax || 0) * 12,
-          netWorth: yearResult.netWorth || 0,
-          propertyValue: yearResult.propertyValue || 0
+        // Berechne Jahreswerte
+        const yearlyIncome = projection.monthlyResults
+          .slice(startIndex, endIndex + 1)
+          .reduce((sum, month) => sum + (month.totalIncome || 0), 0);
+          
+        const yearlyExpenses = projection.monthlyResults
+          .slice(startIndex, endIndex + 1)
+          .reduce((sum, month) => sum + (month.totalExpenses || 0), 0);
+        
+        years.push({
+          year: currentYear + year,
+          age: currentAge + year,
+          startBalance: startData.cashBalance || 0,
+          endBalance: endData.cashBalance || 0,
+          totalIncome: yearlyIncome,
+          totalExpenses: yearlyExpenses,
+          netWorth: endData.netWorth || 0,
+          propertyValue: endData.totalPropertyValue || 0
         });
       }
     }
     
-    return yearlyResults;
+    return years;
   }, [projection, currentAge]);
+
+  return (
+    <div className="finanzplanung-container">
+      <header className="header">
+        <h1>💰 Finanzplanung</h1>
+        <div className="header-controls">
+          <div className="age-input-container">
+            <label htmlFor="current-age">Aktuelles Alter:</label>
+            <input
+              id="current-age"
+              type="number"
+              min="18"
+              max="100"
+              value={currentAge}
+              onChange={(e) => setCurrentAge(parseInt(e.target.value) || 65)}
+              className="age-input"
+            />
+          </div>
+          <div className="time-range-container">
+            <label htmlFor="time-range">Zeitraum:</label>
+            <select
+              id="time-range"
+              value={timeRange}
+              onChange={(e) => setTimeRange(parseInt(e.target.value))}
+              className="time-range-select"
+            >
+              <option value={60}>5 Jahre</option>
+              <option value={120}>10 Jahre</option>
+              <option value={180}>15 Jahre</option>
+              <option value={240}>20 Jahre</option>
+              <option value={300}>25 Jahre</option>
+              <option value={360}>30 Jahre</option>
+            </select>
+          </div>
+        </div>
+      </header>
+
+      <main className="main-content">
+        {/* KPIs und Chart-Bereich */}
+        <div className="dashboard-section">
+          {/* KPI Cards */}
+          <div className="kpi-grid">
+            <div className="kpi-card">
+              <div className="kpi-icon">💸</div>
+              <div className="kpi-content">
+                <h3>Ø Cashflow/Monat</h3>
+                <div className="kpi-value">{formatters.currency(projection.kpis.averageMonthlyCashflow)}</div>
+              </div>
+            </div>
+            
+            <div className="kpi-card">
+              <div className="kpi-icon">🛡️</div>
+              <div className="kpi-content">
+                <h3>Reichweite</h3>
+                <div className="kpi-value">
+                  {projection.kpis.coverageUntilYear === 'N/A' ? 'Unbegrenzt' : `Bis ${projection.kpis.coverageUntilYear}`}
+                </div>
+              </div>
+            </div>
+            
+            <div className="kpi-card">
+              <div className="kpi-icon">💎</div>
+              <div className="kpi-content">
+                <h3>Nettovermögen {currentAge + Math.floor(timeRange / 12)} Jahre</h3>
+                <div className="kpi-value">{formatters.currency(projection.kpis.finalNetWorth)}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Vermögensentwicklung */}
+          <div className="chart-container">
+            <div className="chart-header">
+              <h2>Vermögensentwicklung</h2>
+            </div>
+            <div className="chart-wrapper">
+              {chartData.labels.length > 0 && <Line data={chartData} options={chartOptions} />}
+            </div>
+          </div>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="tab-navigation">
+          <button 
+            className={`tab-button ${activeTab === 'income' ? 'active' : ''}`}
+            onClick={() => setActiveTab('income')}
+          >
+            💰 Einnahmen
+          </button>
+          <button 
+            className={`tab-button ${activeTab === 'expenses' ? 'active' : ''}`}
+            onClick={() => setActiveTab('expenses')}
+          >
+            📝 Ausgaben
+          </button>
+          <button 
+            className={`tab-button ${activeTab === 'properties' ? 'active' : ''}`}
+            onClick={() => setActiveTab('properties')}
+          >
+            🏠 Immobilien
+          </button>
+          <button 
+            className={`tab-button ${activeTab === 'assumptions' ? 'active' : ''}`}
+            onClick={() => setActiveTab('assumptions')}
+          >
+            ⚙️ Parameter
+          </button>
+        </div>
+
+        {/* Tab Content */}
+        <div className="tab-content">
+          {activeTab === 'income' && (
+            <EinkommenSection 
+              data={financialData.income}
+              onChange={(newIncome) => setFinancialData(prev => ({ ...prev, income: newIncome }))}
+            />
+          )}
+          
+          {activeTab === 'expenses' && (
+            <AusgabenSection 
+              data={financialData.expenses}
+              onChange={(newExpenses) => setFinancialData(prev => ({ ...prev, expenses: newExpenses }))}
+            />
+          )}
+          
+          {activeTab === 'properties' && (
+            <ImmobilienManager 
+              properties={financialData.properties}
+              onChange={(newProperties) => setFinancialData(prev => ({ ...prev, properties: newProperties }))}
+            />
+          )}
+          
+          {activeTab === 'assumptions' && (
+            <AnnahmenParameterTest 
+              data={financialData.assumptions}
+              initialCash={financialData.initialCash}
+              onChange={(newAssumptions) => setFinancialData(prev => ({ ...prev, assumptions: newAssumptions }))}
+              onInitialCashChange={(newCash) => setFinancialData(prev => ({ ...prev, initialCash: newCash }))}
+              stressTests={stressTests}
+            />
+          )}
+        </div>
+
+        {/* Jahreszusammenfassung */}
+        <div className="yearly-summary-section">
+          <button 
+            className="yearly-summary-toggle"
+            onClick={() => setShowYearlyTable(!showYearlyTable)}
+          >
+            <span>📅 Jahreszusammenfassung</span>
+            <span className={`toggle-icon ${showYearlyTable ? 'expanded' : ''}`}>▼</span>
+          </button>
+          
+          {showYearlyTable && (
+            <div className="yearly-table-container">
+              <div className="table-wrapper">
+                <table className="yearly-table">
+                  <thead>
+                    <tr>
+                      <th>Jahr</th>
+                      <th>Alter</th>
+                      <th>Cash Anfang</th>
+                      <th>Cash Ende</th>
+                      <th>Einnahmen</th>
+                      <th>Ausgaben</th>
+                      <th>Nettovermögen</th>
+                      <th>Immobilienwert</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {yearlyData.map((year, index) => (
+                      <tr key={index} className={year.endBalance < 0 ? 'negative-balance' : ''}>
+                        <td>{year.year}</td>
+                        <td>{year.age}</td>
+                        <td>{formatters.currency(year.startBalance)}</td>
+                        <td>{formatters.currency(year.endBalance)}</td>
+                        <td>{formatters.currency(year.totalIncome)}</td>
+                        <td>{formatters.currency(year.totalExpenses)}</td>
+                        <td>{formatters.currency(year.netWorth)}</td>
+                        <td>{formatters.currency(year.propertyValue)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Methodik & Berechnung */}
+        <div className="expandable-section">
+          <button 
+            className={`section-toggle ${showTransparency ? 'active' : ''}`}
+            onClick={() => setShowTransparency(!showTransparency)}
+          >
+            <span>📖 Methodik & Berechnung</span>
+            <span className={`toggle-icon ${showTransparency ? 'expanded' : ''}`}>▼</span>
+          </button>
+          
+          {showTransparency && (
+            <div className="section-content">
+              {/* Steuerliche Hinweise */}
+              <div className="form-section info-section">
+                <h2>📋 Steuerliche Berechnung</h2>
+                <div className="tax-info">
+                  <div className="tax-info-item">
+                    <h4>🧮 Automatische Steuerberechnung</h4>
+                    <p>Das System berechnet automatisch Einkommensteuer und Solidaritätszuschlag basierend auf dem deutschen Steuertarif 2024/2025.</p>
+                  </div>
+                  
+                  <div className="tax-info-item">
+                    <h4>🏥 Krankenversicherung</h4>
+                    <p>GKV-Beiträge werden automatisch berechnet (14,6% + 1,3% Zusatzbeitrag). Bei geringem Einkommen gilt das Mindesteinkommen von 1.131,67 € monatlich.</p>
+                  </div>
+                  
+                  <div className="tax-info-item">
+                    <h4>🏠 Immobilieneinkünfte</h4>
+                    <p>Mieteinnahmen werden separat versteuert. AfA-Abschreibungen reduzieren die Steuerlast, nicht aber den Cashflow.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Ausgaben-Analyse */}
+              <div className="form-section info-section">
+                <h2>📊 Ausgaben-Analyse</h2>
+                <div className="expense-analysis">
+                  <div className="analysis-item">
+                    <h4>📈 Inflationsanpassung</h4>
+                    <p>Variable Kosten (Lebensmittel, Freizeit) werden jährlich um die Ausgabenwachstumsrate angepasst, um der Inflation zu folgen.</p>
+                  </div>
+                  
+                  <div className="analysis-item">
+                    <h4>🏠 Wohnkosten-Anteil</h4>
+                    <p>Empfehlung: max. 30-40% der Gesamtausgaben für Wohnkosten</p>
+                  </div>
+                  
+                  <div className="analysis-item">
+                    <h4>⚖️ Fix- vs. Variable Kosten</h4>
+                    <p>Ein höherer Anteil variabler Kosten bietet mehr Flexibilität bei wirtschaftlichen Schwankungen</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Immobilien-Tipps */}
+              <div className="form-section info-section">
+                <h2>💡 Immobilien-Analyse</h2>
+                <div className="tips-grid">
+                  <div className="tip-item">
+                    <h4>🎯 Rendite-Bewertung</h4>
+                    <p>
+                      <strong>Brutto-Mietrendite:</strong> (Jahresmiete ÷ Kaufpreis) × 100
+                      <br />
+                      <strong>Netto-Mietrendite:</strong> Nach Abzug aller Kosten
+                      <br />
+                      <small>Richtwerte: 4-6% brutto, 2-4% netto</small>
+                    </p>
+                  </div>
+                  
+                  <div className="tip-item">
+                    <h4>🔧 Instandhaltungskosten</h4>
+                    <p>
+                      Faustregeln für jährliche Instandhaltung:
+                      <br />• Neubau: 0,5-1% des Immobilienwerts
+                      <br />• Bestand: 1,5-2,5% des Immobilienwerts
+                      <br />• Altbau: 2-4% des Immobilienwerts
+                    </p>
+                  </div>
+                  
+                  <div className="tip-item">
+                    <h4>📊 AfA-Optimierung</h4>
+                    <p>
+                      <strong>Standard-AfA:</strong> 2% linear über 50 Jahre
+                      <br />
+                      <strong>Denkmalschutz:</strong> Bis zu 9% in ersten 8 Jahren
+                      <br />
+                      <small>AfA reduziert nur Steuern, nicht den Cashflow!</small>
+                    </p>
+                  </div>
+                  
+                  <div className="tip-item">
+                    <h4>🏠 Diversifikation</h4>
+                    <p>
+                      Risiken streuen durch:
+                      <br />• Verschiedene Lagen
+                      <br />• Unterschiedliche Objekttypen
+                      <br />• Mehrere Mieter
+                      <br />• Mix aus Wohn- und Gewerbeimmobilien
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Technische Details */}
+              <div className="form-section info-section">
+                <h2>🔢 Technische Berechnungsdetails</h2>
+                
+                <div className="methodology-section">
+                  <h3>💰 Einkommensteuer-Berechnung</h3>
+                  <p>Progressiver Steuertarif 2024/2025:</p>
+                  <ul>
+                    <li>Grundfreibetrag: 11.604 € jährlich</li>
+                    <li>Eingangssteuersatz: 14%</li>
+                    <li>Spitzensteuersatz: 42% (ab 66.761 €)</li>
+                    <li>Reichensteuersatz: 45% (ab 277.826 €)</li>
+                    <li>Solidaritätszuschlag: 5,5% (ab Freigrenze)</li>
+                  </ul>
+                </div>
+
+                <div className="methodology-section">
+                  <h3>🏥 Gesetzliche Krankenversicherung</h3>
+                  <p>Berechnung nach aktuellen Sätzen:</p>
+                  <ul>
+                    <li>Allgemeiner Beitragssatz: 14,6%</li>
+                    <li>Zusatzbeitrag: 1,3% (durchschnittlich)</li>
+                    <li>Mindesteinkommen: 1.131,67 € monatlich</li>
+                    <li>Beitragsbemessungsgrenze: 5.175 € monatlich</li>
+                  </ul>
+                </div>
+
+                <div className="methodology-section">
+                  <h3>🏠 Immobilien-AfA</h3>
+                  <p>Abschreibung für Abnutzung:</p>
+                  <ul>
+                    <li>Basis: Kaufpreis minus Grundstückswert</li>
+                    <li>Standard-Satz: 2% linear</li>
+                    <li>Nur steuerlich wirksam, nicht cashflow-relevant</li>
+                  </ul>
+                </div>
+
+                <div className="methodology-section">
+                  <h3>📈 Inflations- und Wachstumsanpassungen</h3>
+                  <ul>
+                    <li>Einnahmen: Jährliche Steigerung nach Einkommenswachstumsrate</li>
+                    <li>Ausgaben: Jährliche Steigerung nach Ausgabenwachstumsrate</li>
+                    <li>Immobilienwerte: Standardmäßig 2% p.a.</li>
+                    <li>Cash-Zinsen: Monatlich auf aktuellen Bestand</li>
+                  </ul>
+                </div>
+
+                <div className="methodology-section">
+                  <h3>🎯 Stress-Tests</h3>
+                  <p>Verschiedene Szenarien werden automatisch berechnet:</p>
+                  <ul>
+                    <li>Basisszenario: Aktuelle Annahmen</li>
+                    <li>Inflationsszenario: +2% Inflation</li>
+                    <li>Niedrigzins: -1% Sparrendite</li>
+                    <li>Kombiniert: Beide Faktoren gemeinsam</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+};
+
+export default FinanzplanungElke;
+        summary: {},
+        kpis: {
+          averageMonthlyCashflow: 0,
+          liquidityBuffer: 0,
+          coverageUntilYear: 'N/A',
+          finalNetWorth: 0
+        }
+      };
+    }
+  }, [financialData, timeRange]);
+
+  const stressTests = useMemo(() => {
+    try {
+      return runStressTests(financialData, projection);
+    } catch (error) {
+      console.error('Fehler bei Stress-Tests:', error);
+      return {};
+    }
+  }, [financialData, projection]);
+
+  // Chart-Daten für Vermögensentwicklung
+  const chartData = useMemo(() => {
+    if (!projection.monthlyResults || projection.monthlyResults.length === 0) {
+      return {
+        labels: [],
+        datasets: []
+      };
+    }
+
+    const currentYear = new Date().getFullYear();
+    const labels = projection.monthlyResults.map((_, index) => {
+      const year = Math.floor(index / 12);
+      return `${currentYear + year}`;
+    }).filter((_, index) => index % 12 === 0); // Alle 12 Monate (jährlich)
+
+    const cashData = projection.monthlyResults
+      .filter((_, index) => index % 12 === 0)
+      .map(result => result.cashBalance || 0);
+
+    const netWorthData = projection.monthlyResults
+      .filter((_, index) => index % 12 === 0)
+      .map(result => result.netWorth || 0);
+
+    // Inflationsbereinigte Werte (heutige Kaufkraft)
+    const inflationRate = financialData.assumptions.inflationRate / 100;
+    const inflationAdjustedNetWorthData = projection.monthlyResults
+      .filter((_, index) => index % 12 === 0)
+      .map((result, index) => {
+        const years = index;
+        const inflationFactor = Math.pow(1 + inflationRate, years);
+        return (result.netWorth || 0) / inflationFactor;
+      });
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: 'Cash-Bestand',
+          data: cashData,
+          borderColor: '#007AFF',
+          backgroundColor: 'rgba(0, 122, 255, 0.1)',
+          fill: true,
+          tension: 0.4,
+          borderWidth: 3
+        },
+        {
+          label: 'Nettovermögen (nominal)',
+          data: netWorthData,
+          borderColor: '#34C759',
+          backgroundColor: 'rgba(52, 199, 89, 0.1)',
+          fill: false,
+          tension: 0.4,
+          borderWidth: 3
+        },
+        {
+          label: 'Nettovermögen (kaufkraftbereinigt)',
+          data: inflationAdjustedNetWorthData,
+          borderColor: '#FF9500',
+          backgroundColor: 'rgba(255, 149, 0, 0.1)',
+          fill: false,
+          tension: 0.4,
+          borderWidth: 3,
+          borderDash: [5, 5]
+        }
+      ]
+    };
+  }, [projection, financialData.assumptions.inflationRate]);
 
   // Einnahmen/Ausgaben Zusammenfassung mit Immobilien-Details
   const incomeExpenseSummary = useMemo(() => {
@@ -367,6 +818,47 @@ const FinanzplanungElke = () => {
     return { income, expenses, propertyDetails };
   }, [projection, financialData.properties]);
 
+  // Jahreszusammenfassungs-Daten
+  const yearlyData = useMemo(() => {
+    if (!projection.monthlyResults || projection.monthlyResults.length === 0) {
+      return [];
+    }
+
+    const currentYear = new Date().getFullYear();
+    const yearlyResults = [];
+    
+    for (let yearIndex = 0; yearIndex < Math.ceil(projection.monthlyResults.length / 12); yearIndex++) {
+      const yearStartIndex = yearIndex * 12;
+      const yearEndIndex = Math.min(yearStartIndex + 11, projection.monthlyResults.length - 1);
+      
+      if (yearEndIndex >= 0 && projection.monthlyResults[yearEndIndex]) {
+        const yearResult = projection.monthlyResults[yearEndIndex];
+        const startYearResult = projection.monthlyResults[yearStartIndex] || yearResult;
+        
+        yearlyResults.push({
+          year: currentYear + yearIndex,
+          age: currentAge + yearIndex,
+          startBalance: startYearResult.cashBalance || 0,
+          endBalance: yearResult.cashBalance || 0,
+          totalIncome: (yearResult.income?.pension || 0) * 12 + 
+                      (yearResult.income?.otherIncome || 0) * 12 + 
+                      (yearResult.income?.propertyRent || 0) * 12,
+          totalExpenses: (yearResult.expenses?.housing || 0) * 12 +
+                        (yearResult.expenses?.healthInsurance || 0) * 12 +
+                        (yearResult.expenses?.otherInsurance || 0) * 12 +
+                        (yearResult.expenses?.groceries || 0) * 12 +
+                        (yearResult.expenses?.leisure || 0) * 12 +
+                        (yearResult.expenses?.propertyMaintenance || 0) * 12 +
+                        (yearResult.expenses?.tax || 0) * 12,
+          netWorth: yearResult.netWorth || 0,
+          propertyValue: yearResult.propertyValue || 0
+        });
+      }
+    }
+    
+    return yearlyResults;
+  }, [projection, currentAge]);
+
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -379,7 +871,8 @@ const FinanzplanungElke = () => {
           font: {
             family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto',
             size: 14
-          }
+          },
+          color: '#ffffff'
         }
       },
       tooltip: {
@@ -405,72 +898,32 @@ const FinanzplanungElke = () => {
           },
           font: {
             family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto'
-          }
+          },
+          color: '#ffffff'
         },
         grid: {
-          color: 'rgba(0, 0, 0, 0.1)'
+          color: 'rgba(255, 255, 255, 0.1)'
         }
       },
       x: {
         ticks: {
           font: {
             family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto'
-          }
+          },
+          color: '#ffffff'
         },
         grid: {
-          color: 'rgba(0, 0, 0, 0.1)'
+          color: 'rgba(255, 255, 255, 0.1)'
         }
       }
     }
   };
 
-  const doughnutOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'right',
-        labels: {
-          usePointStyle: true,
-          padding: 20,
-          font: {
-            family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto',
-            size: 12
-          },
-          generateLabels: function(chart) {
-            const data = chart.data;
-            if (data.labels.length && data.datasets.length) {
-              return data.labels.map((label, i) => {
-                const value = data.datasets[0].data[i];
-                const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
-                const percentage = ((value / total) * 100).toFixed(1);
-                return {
-                  text: `${label}: ${formatters.currency(value)} (${percentage}%)`,
-                  fillStyle: data.datasets[0].backgroundColor[i],
-                  strokeStyle: data.datasets[0].backgroundColor[i],
-                  lineWidth: 0,
-                  pointStyle: 'circle',
-                  hidden: false,
-                  index: i
-                };
-              });
-            }
-            return [];
-          }
-        }
-      },
-      tooltip: {
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        callbacks: {
-          label: function(context) {
-            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-            const percentage = ((context.parsed / total) * 100).toFixed(1);
-            return `${context.label}: ${formatters.currency(context.parsed)} (${percentage}%)`;
-          }
-        }
-      }
-    },
-    cutout: '50%'
+  const toggleSection = (section) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
   };
 
   return (
@@ -514,379 +967,470 @@ const FinanzplanungElke = () => {
         </div>
       </header>
 
-      {/* Ausklappbare Bereiche statt Navigation */}
-      <div className="expandable-sections">
-        <div className="expandable-section">
-          <button 
-            className={`section-toggle ${expandedSections.overview ? 'active' : ''}`}
-            onClick={() => setExpandedSections(prev => ({...prev, overview: !prev.overview}))}
-          >
-            <span>📊 Übersicht</span>
-            <span className={`toggle-icon ${expandedSections.overview ? 'expanded' : ''}`}>▼</span>
-          </button>
-          
-          {expandedSections.overview && (
-            <div className="section-content">
-              {/* KPI-Kacheln */}
-              <div className="kpi-grid">
-              <div className="kpi-card">
-                <div className="kpi-icon">💶</div>
-                <div className="kpi-content">
-                  <h3>Verfügbares monatliches Budget</h3>
-                  <div className="kpi-value">{formatters.currency(projection.kpis.averageMonthlyCashflow)}</div>
-                </div>
+      {/* Ausklappbare Bereiche */}
+      <main className="main-content">
+        <div className="expandable-sections">
+          {/* Einnahmen */}
+          <div className="expandable-section">
+            <button 
+              className={`section-toggle ${expandedSections.income ? 'active' : ''}`}
+              onClick={() => toggleSection('income')}
+            >
+              <span>💰 Einnahmen</span>
+              <span className={`toggle-icon ${expandedSections.income ? 'expanded' : ''}`}>▼</span>
+            </button>
+            
+            {expandedSections.income && (
+              <div className="section-content">
+                <EinkommenSection 
+                  data={financialData.income}
+                  onChange={(newIncome) => setFinancialData(prev => ({ ...prev, income: newIncome }))}
+                />
               </div>
-              
-              <div className="kpi-card">
-                <div className="kpi-icon">🛡️</div>
-                <div className="kpi-content">
-                  <h3>Liquiditätspuffer</h3>
-                  <div className="kpi-value">{Math.round(projection.kpis.liquidityBuffer)} Monate</div>
-                </div>
-              </div>
-              
-              <div className="kpi-card">
-                <div className="kpi-icon">📅</div>
-                <div className="kpi-content">
-                  <h3>Deckung bis Jahr</h3>
-                  <div className="kpi-value">
-                    {projection.kpis.coverageUntilYear !== 'N/A' && projection.kpis.coverageUntilYear !== '10+' 
-                      ? new Date().getFullYear() + parseInt(projection.kpis.coverageUntilYear) - 1
-                      : new Date().getFullYear() + Math.floor(timeRange / 12)
-                    }
-                  </div>
-                </div>
-              </div>
-              
-              <div className="kpi-card">
-                <div className="kpi-icon">💎</div>
-                <div className="kpi-content">
-                  <h3>Nettovermögen {currentAge + Math.floor(timeRange / 12)} Jahre</h3>
-                  <div className="kpi-value">{formatters.currency(projection.kpis.finalNetWorth)}</div>
-                </div>
-              </div>
-            </div>
+            )}
+          </div>
 
-            {/* Jahreszusammenfassung */}
-            <div className="yearly-summary-section">
-              <button 
-                className="yearly-summary-toggle"
-                onClick={() => setShowYearlyTable(!showYearlyTable)}
-              >
-                <span>📅 Jahreszusammenfassung</span>
-                <span className={`toggle-icon ${showYearlyTable ? 'expanded' : ''}`}>▼</span>
-              </button>
-              
-              {showYearlyTable && (
-                <div className="yearly-table-container">
-                  <div className="table-wrapper">
-                    <table className="yearly-table">
-                      <thead>
-                        <tr>
-                          <th>Jahr</th>
-                          <th>Alter</th>
-                          <th>Cash Anfang</th>
-                          <th>Cash Ende</th>
-                          <th>Einnahmen</th>
-                          <th>Ausgaben</th>
-                          <th>Nettovermögen</th>
-                          <th>Immobilienwert</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {yearlyData.map((year, index) => (
-                          <tr key={index} className={year.endBalance < 0 ? 'negative-balance' : ''}>
-                            <td>{year.year}</td>
-                            <td>{year.age}</td>
-                            <td>{formatters.currency(year.startBalance)}</td>
-                            <td>{formatters.currency(year.endBalance)}</td>
-                            <td>{formatters.currency(year.totalIncome)}</td>
-                            <td>{formatters.currency(year.totalExpenses)}</td>
-                            <td>{formatters.currency(year.netWorth)}</td>
-                            <td>{formatters.currency(year.propertyValue)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </div>
+          {/* Ausgaben */}
+          <div className="expandable-section">
+            <button 
+              className={`section-toggle ${expandedSections.expenses ? 'active' : ''}`}
+              onClick={() => toggleSection('expenses')}
+            >
+              <span>📝 Ausgaben</span>
+              <span className={`toggle-icon ${expandedSections.expenses ? 'expanded' : ''}`}>▼</span>
+            </button>
+            
+            {expandedSections.expenses && (
+              <div className="section-content">
+                <AusgabenSection 
+                  data={financialData.expenses}
+                  onChange={(newExpenses) => setFinancialData(prev => ({ ...prev, expenses: newExpenses }))}
+                />
+              </div>
+            )}
+          </div>
 
-            {/* Einnahmen/Ausgaben Zusammenfassung */}
-            <div className="summary-section">
-              <button 
-                className="summary-toggle"
-                onClick={() => setExpandedSections(prev => ({...prev, incomeSummary: !prev.incomeSummary}))}
-              >
-                <span>💰 Einnahmenübersicht</span>
-                <span className={`toggle-icon ${expandedSections.incomeSummary ? 'expanded' : ''}`}>▼</span>
-              </button>
-              
-              {expandedSections.incomeSummary && (
-                <div className="summary-content">
-                  <div className="summary-grid">
-                    <div className="summary-column">
-                      <h4>Einnahmequellen</h4>
-                      <div className="summary-items">
-                        {incomeExpenseSummary.income.map((item, index) => (
-                          <div key={index} className="summary-item">
-                            <span className="item-label">{item.category}</span>
-                            <span className="item-values">
-                              <span className="monthly">{formatters.currency(item.monthly)}/Monat</span>
-                              <span className="yearly">{formatters.currency(item.yearly)}/Jahr</span>
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="summary-total">
-                        <span>Gesamt:</span>
-                        <span>
-                          {formatters.currency(incomeExpenseSummary.income.reduce((sum, item) => sum + item.yearly, 0))}/Jahr
-                        </span>
+          {/* Immobilien */}
+          <div className="expandable-section">
+            <button 
+              className={`section-toggle ${expandedSections.properties ? 'active' : ''}`}
+              onClick={() => toggleSection('properties')}
+            >
+              <span>🏠 Immobilien</span>
+              <span className={`toggle-icon ${expandedSections.properties ? 'expanded' : ''}`}>▼</span>
+            </button>
+            
+            {expandedSections.properties && (
+              <div className="section-content">
+                <ImmobilienManager 
+                  properties={financialData.properties}
+                  onChange={(newProperties) => setFinancialData(prev => ({ ...prev, properties: newProperties }))}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Parameter */}
+          <div className="expandable-section">
+            <button 
+              className={`section-toggle ${expandedSections.assumptions ? 'active' : ''}`}
+              onClick={() => toggleSection('assumptions')}
+            >
+              <span>⚙️ Parameter</span>
+              <span className={`toggle-icon ${expandedSections.assumptions ? 'expanded' : ''}`}>▼</span>
+            </button>
+            
+            {expandedSections.assumptions && (
+              <div className="section-content">
+                <AnnahmenParameterTest 
+                  data={financialData.assumptions}
+                  initialCash={financialData.initialCash}
+                  onChange={(newAssumptions) => setFinancialData(prev => ({ ...prev, assumptions: newAssumptions }))}
+                  onInitialCashChange={(newCash) => setFinancialData(prev => ({ ...prev, initialCash: newCash }))}
+                  stressTests={stressTests}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Übersicht */}
+          <div className="expandable-section">
+            <button 
+              className={`section-toggle ${expandedSections.overview ? 'active' : ''}`}
+              onClick={() => toggleSection('overview')}
+            >
+              <span>📊 Übersicht</span>
+              <span className={`toggle-icon ${expandedSections.overview ? 'expanded' : ''}`}>▼</span>
+            </button>
+            
+            {expandedSections.overview && (
+              <div className="section-content">
+                {/* KPI-Kacheln */}
+                <div className="kpi-grid">
+                  <div className="kpi-card">
+                    <div className="kpi-icon">💶</div>
+                    <div className="kpi-content">
+                      <h3>Verfügbares monatliches Budget</h3>
+                      <div className="kpi-value">{formatters.currency(projection.kpis.averageMonthlyCashflow)}</div>
+                    </div>
+                  </div>
+                  
+                  <div className="kpi-card">
+                    <div className="kpi-icon"></div>
+                    <div className="kpi-content">
+                      <h3>Deckung bis Jahr</h3>
+                      <div className="kpi-value">
+                        {projection.kpis.coverageUntilYear !== 'N/A' && projection.kpis.coverageUntilYear !== '10+' 
+                          ? new Date().getFullYear() + parseInt(projection.kpis.coverageUntilYear) - 1
+                          : new Date().getFullYear() + Math.floor(timeRange / 12)
+                        }
                       </div>
                     </div>
-                    
-                    {incomeExpenseSummary.propertyDetails.length > 0 && (
-                      <div className="summary-column">
-                        <h4>Immobilien-Details</h4>
-                        <div className="property-details">
-                          {incomeExpenseSummary.propertyDetails.map((property, index) => (
-                            <div key={index} className="property-item">
-                              <h5>{property.name}</h5>
-                              <div className="property-stats">
-                                <div className="stat">
-                                  <span>Mieteinnahmen:</span>
-                                  <span>{formatters.currency(property.yearlyRent)}/Jahr</span>
-                                </div>
-                                <div className="stat">
-                                  <span>Instandhaltung:</span>
-                                  <span className="negative">{formatters.currency(property.yearlyMaintenance)}/Jahr</span>
-                                </div>
-                                <div className="stat">
-                                  <span>Netto-Ertrag:</span>
-                                  <span className={property.netIncome >= 0 ? 'positive' : 'negative'}>
-                                    {formatters.currency(property.netIncome)}/Jahr
-                                  </span>
-                                </div>
-                                <div className="stat">
-                                  <span>Rendite:</span>
-                                  <span className={property.yield >= 0 ? 'positive' : 'negative'}>
-                                    {property.yield.toFixed(2)}%
-                                  </span>
-                                </div>
+                  </div>
+                  
+                  <div className="kpi-card">
+                    <div className="kpi-icon">💎</div>
+                    <div className="kpi-content">
+                      <h3>Nettovermögen {currentAge + Math.floor(timeRange / 12)} Jahre</h3>
+                      <div className="kpi-value">{formatters.currency(projection.kpis.finalNetWorth)}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Vermögensentwicklung */}
+                <div className="chart-container">
+                  <div className="chart-header">
+                    <h2>Vermögensentwicklung</h2>
+                  </div>
+                  <div className="chart-wrapper">
+                    {chartData.labels.length > 0 && <Line data={chartData} options={chartOptions} />}
+                  </div>
+                </div>
+
+                {/* Jahreszusammenfassung */}
+                <div className="yearly-summary-section">
+                  <button 
+                    className="yearly-summary-toggle"
+                    onClick={() => setShowYearlyTable(!showYearlyTable)}
+                  >
+                    <span>📅 Jahreszusammenfassung</span>
+                    <span className={`toggle-icon ${showYearlyTable ? 'expanded' : ''}`}>▼</span>
+                  </button>
+                  
+                  {showYearlyTable && (
+                    <div className="yearly-table-container">
+                      <div className="table-wrapper">
+                        <table className="yearly-table">
+                          <thead>
+                            <tr>
+                              <th>Jahr</th>
+                              <th>Alter</th>
+                              <th>Cash Anfang</th>
+                              <th>Cash Ende</th>
+                              <th>Einnahmen</th>
+                              <th>Ausgaben</th>
+                              <th>Nettovermögen</th>
+                              <th>Immobilienwert</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {yearlyData.map((year, index) => (
+                              <tr key={index} className={year.endBalance < 0 ? 'negative-balance' : ''}>
+                                <td>{year.year}</td>
+                                <td>{year.age}</td>
+                                <td>{formatters.currency(year.startBalance)}</td>
+                                <td>{formatters.currency(year.endBalance)}</td>
+                                <td>{formatters.currency(year.totalIncome)}</td>
+                                <td>{formatters.currency(year.totalExpenses)}</td>
+                                <td>{formatters.currency(year.netWorth)}</td>
+                                <td>{formatters.currency(year.propertyValue)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Einnahmen-Zusammenfassung */}
+                <div className="summary-section">
+                  <button 
+                    className="summary-toggle"
+                    onClick={() => toggleSection('incomeSummary')}
+                  >
+                    <span>💰 Einnahmenübersicht</span>
+                    <span className={`toggle-icon ${expandedSections.incomeSummary ? 'expanded' : ''}`}>▼</span>
+                  </button>
+                  
+                  {expandedSections.incomeSummary && (
+                    <div className="summary-content">
+                      <div className="summary-grid">
+                        <div className="summary-column">
+                          <h4>Einnahmequellen</h4>
+                          <div className="summary-items">
+                            {incomeExpenseSummary.income.map((item, index) => (
+                              <div key={index} className="summary-item">
+                                <span className="item-label">{item.category}</span>
+                                <span className="item-values">
+                                  <span className="monthly">{formatters.currency(item.monthly)}/Monat</span>
+                                  <span className="yearly">{formatters.currency(item.yearly)}/Jahr</span>
+                                </span>
                               </div>
+                            ))}
+                          </div>
+                          <div className="summary-total">
+                            <span>Gesamt:</span>
+                            <span>
+                              {formatters.currency(incomeExpenseSummary.income.reduce((sum, item) => sum + item.yearly, 0))}/Jahr
+                            </span>
+                          </div>
+                        </div>
+                        
+                        {incomeExpenseSummary.propertyDetails.length > 0 && (
+                          <div className="summary-column">
+                            <h4>Immobilien-Details</h4>
+                            <div className="property-details">
+                              {incomeExpenseSummary.propertyDetails.map((property, index) => (
+                                <div key={index} className="property-item">
+                                  <h5>{property.name}</h5>
+                                  <div className="property-stats">
+                                    <div className="stat">
+                                      <span>Mieteinnahmen:</span>
+                                      <span>{formatters.currency(property.yearlyRent)}/Jahr</span>
+                                    </div>
+                                    <div className="stat">
+                                      <span>Instandhaltung:</span>
+                                      <span className="negative">{formatters.currency(property.yearlyMaintenance)}/Jahr</span>
+                                    </div>
+                                    <div className="stat">
+                                      <span>Netto-Ertrag:</span>
+                                      <span className={property.netIncome >= 0 ? 'positive' : 'negative'}>
+                                        {formatters.currency(property.netIncome)}/Jahr
+                                      </span>
+                                    </div>
+                                    <div className="stat">
+                                      <span>Rendite:</span>
+                                      <span className={property.yield >= 0 ? 'positive' : 'negative'}>
+                                        {property.yield.toFixed(2)}%
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Ausgaben-Zusammenfassung */}
+                <div className="summary-section">
+                  <button 
+                    className="summary-toggle"
+                    onClick={() => toggleSection('expenseSummary')}
+                  >
+                    <span>📝 Ausgabenübersicht</span>
+                    <span className={`toggle-icon ${expandedSections.expenseSummary ? 'expanded' : ''}`}>▼</span>
+                  </button>
+                  
+                  {expandedSections.expenseSummary && (
+                    <div className="summary-content">
+                      <div className="summary-column">
+                        <h4>Ausgabenkategorien</h4>
+                        <div className="summary-items">
+                          {incomeExpenseSummary.expenses.map((item, index) => (
+                            <div key={index} className="summary-item">
+                              <span className="item-label">{item.category}</span>
+                              <span className="item-values">
+                                <span className="monthly">{formatters.currency(item.monthly)}/Monat</span>
+                                <span className="yearly">{formatters.currency(item.yearly)}/Jahr</span>
+                              </span>
                             </div>
                           ))}
                         </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="summary-section">
-              <button 
-                className="summary-toggle"
-                onClick={() => setExpandedSections(prev => ({...prev, expenseSummary: !prev.expenseSummary}))}
-              >
-                <span>📝 Ausgabenübersicht</span>
-                <span className={`toggle-icon ${expandedSections.expenseSummary ? 'expanded' : ''}`}>▼</span>
-              </button>
-              
-              {expandedSections.expenseSummary && (
-                <div className="summary-content">
-                  <div className="summary-column">
-                    <h4>Ausgabenkategorien</h4>
-                    <div className="summary-items">
-                      {incomeExpenseSummary.expenses.map((item, index) => (
-                        <div key={index} className="summary-item">
-                          <span className="item-label">{item.category}</span>
-                          <span className="item-values">
-                            <span className="monthly">{formatters.currency(item.monthly)}/Monat</span>
-                            <span className="yearly">{formatters.currency(item.yearly)}/Jahr</span>
+                        <div className="summary-total">
+                          <span>Gesamt:</span>
+                          <span>
+                            {formatters.currency(incomeExpenseSummary.expenses.reduce((sum, item) => sum + item.yearly, 0))}/Jahr
                           </span>
                         </div>
-                      ))}
+                      </div>
                     </div>
-                    <div className="summary-total">
-                      <span>Gesamt:</span>
-                      <span>
-                        {formatters.currency(incomeExpenseSummary.expenses.reduce((sum, item) => sum + item.yearly, 0))}/Jahr
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Hauptgraph */}
-            <div className="chart-container">
-              <div className="chart-header">
-                <h2>Vermögensentwicklung</h2>
-              </div>
-              <div className="chart-wrapper">
-                {chartData.labels.length > 0 && <Line data={chartData} options={chartOptions} />}
-              </div>
-            </div>
-
-            {/* Ausgaben-Breakdown Monatlich */}
-            <div className="expense-breakdown">
-              <div className="chart-header">
-                <h2>Ausgabenkategorien (monatlich)</h2>
-                {expenseChartData.monthly && (
-                  <div className="total-expenses">
-                    Gesamt: {formatters.currency(expenseChartData.monthly.total)} / Monat
-                  </div>
-                )}
-              </div>
-              <div className="chart-wrapper doughnut-chart">
-                {expenseChartData.monthly && <Doughnut data={expenseChartData.monthly} options={doughnutOptions} />}
-              </div>
-            </div>
-
-            {/* Ausgaben-Breakdown Jährlich */}
-            <div className="expense-breakdown">
-              <div className="chart-header">
-                <h2>Ausgabenkategorien (jährlich)</h2>
-                {expenseChartData.yearly && (
-                  <div className="total-expenses">
-                    Gesamt: {formatters.currency(expenseChartData.yearly.total)} / Jahr
-                  </div>
-                )}
-              </div>
-              <div className="chart-wrapper doughnut-chart">
-                {expenseChartData.yearly && <Doughnut data={expenseChartData.yearly} options={doughnutOptions} />}
-              </div>
-            </div>
-
-            {/* Temporär entfernt: Sankey-Diagramm für Ausgabenverteilung */}
-            {/* <ExpenseSankeyChart financialData={financialData} /> */}
-
-            {/* Warnungen */}
-            {projection.monthlyResults && projection.monthlyResults.some(r => r.cashBalance < 0) && (
-              <div className="warning-section">
-                <div className="warning-card">
-                  <div className="warning-icon">⚠️</div>
-                  <div className="warning-content">
-                    <h3>Liquiditätswarnung</h3>
-                    <p>Der Cash-Bestand wird voraussichtlich in Jahr {projection.kpis.coverageUntilYear} negativ.</p>
-                  </div>
+                  )}
                 </div>
               </div>
             )}
           </div>
-        )}
-
-        {activeTab === 'income' && (
-          <EinkommenSection 
-            data={financialData.income}
-            onChange={(newIncome) => setFinancialData(prev => ({ ...prev, income: newIncome }))}
-          />
-        )}
-
-        {activeTab === 'expenses' && (
-          <AusgabenSection 
-            data={financialData.expenses}
-            onChange={(newExpenses) => setFinancialData(prev => ({ ...prev, expenses: newExpenses }))}
-          />
-        )}
-
-        {activeTab === 'properties' && (
-          <ImmobilienManager 
-            properties={financialData.properties}
-            onChange={(newProperties) => setFinancialData(prev => ({ ...prev, properties: newProperties }))}
-          />
-        )}
-
-        {activeTab === 'assumptions' && (
-          <AnnahmenParameterTest 
-            data={financialData.assumptions}
-            initialCash={financialData.initialCash}
-            onChange={(newAssumptions) => setFinancialData(prev => ({ ...prev, assumptions: newAssumptions }))}
-            onInitialCashChange={(newCash) => setFinancialData(prev => ({ ...prev, initialCash: newCash }))}
-            stressTests={stressTests}
-          />
-        )}
-      </main>
-
-      {/* Transparenz-Panel */}
-      <button 
-        className="transparency-toggle"
-        onClick={() => setShowTransparency(!showTransparency)}
-      >
-        {showTransparency ? '📖 Methodik verbergen' : '📖 Methodik & Berechnung'}
-      </button>
-
-      {showTransparency && (
-        <div className="transparency-panel">
-          <div className="transparency-content">
-            <div className="transparency-header">
-              <h2>Berechnungsmethodik</h2>
-              <button 
-                className="transparency-close"
-                onClick={() => setShowTransparency(false)}
-                aria-label="Schließen"
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div className="methodology-section">
-              <h3>🧮 Einkommensteuer</h3>
-              <p>Basiert auf dem deutschen Einkommensteuertarif 2024/2025:</p>
-              <ul>
-                <li>Grundfreibetrag: 11.604 €</li>
-                <li>Progressionszonen mit entsprechenden Formeln</li>
-                <li>Solidaritätszuschlag: 5,5% (ab Freigrenze)</li>
-              </ul>
-            </div>
-
-            <div className="methodology-section">
-              <h3>🏥 Gesetzliche Krankenversicherung</h3>
-              <p>Berechnung nach aktuellen Sätzen:</p>
-              <ul>
-                <li>Allgemeiner Beitragssatz: 14,6%</li>
-                <li>Zusatzbeitrag: 1,3% (durchschnittlich)</li>
-                <li>Mindesteinkommen: 1.131,67 € monatlich</li>
-                <li>Beitragsbemessungsgrenze: 5.175 € monatlich</li>
-              </ul>
-            </div>
-
-            <div className="methodology-section">
-              <h3>🏠 Immobilien-AfA</h3>
-              <p>Abschreibung für Abnutzung:</p>
-              <ul>
-                <li>Basis: Kaufpreis minus Grundstückswert</li>
-                <li>Standard-Satz: 2% linear</li>
-                <li>Nur steuerlich wirksam, nicht cashflow-relevant</li>
-              </ul>
-            </div>
-
-            <div className="methodology-section">
-              <h3>📈 Inflations- und Wachstumsanpassungen</h3>
-              <ul>
-                <li>Einnahmen: Jährliche Steigerung nach Einkommenswachstumsrate</li>
-                <li>Ausgaben: Jährliche Steigerung nach Ausgabenwachstumsrate</li>
-                <li>Immobilienwerte: Standardmäßig 2% p.a.</li>
-                <li>Cash-Zinsen: Monatlich auf aktuellen Bestand</li>
-              </ul>
-            </div>
-
-            <div className="methodology-section">
-              <h3>🎯 Stress-Tests</h3>
-              <p>Verschiedene Szenarien werden automatisch berechnet:</p>
-              <ul>
-                <li>Basisszenario: Aktuelle Annahmen</li>
-                <li>Inflationsszenario: +2% Inflation</li>
-                <li>Niedrigzins: -1% Sparrendite</li>
-                <li>Kombiniert: Beide Faktoren gemeinsam</li>
-              </ul>
-            </div>
-          </div>
         </div>
-      )}
+
+        {/* Methodik & Berechnung */}
+        <div className="expandable-section">
+          <button 
+            className={`section-toggle ${showTransparency ? 'active' : ''}`}
+            onClick={() => setShowTransparency(!showTransparency)}
+          >
+            <span>📖 Methodik & Berechnung</span>
+            <span className={`toggle-icon ${showTransparency ? 'expanded' : ''}`}>▼</span>
+          </button>
+          
+          {showTransparency && (
+            <div className="section-content">
+              {/* Steuerliche Hinweise */}
+              <div className="form-section info-section">
+                <h2>📋 Steuerliche Berechnung</h2>
+                <div className="tax-info">
+                  <div className="tax-info-item">
+                    <h4>🧮 Automatische Steuerberechnung</h4>
+                    <p>Das System berechnet automatisch Einkommensteuer und Solidaritätszuschlag basierend auf dem deutschen Steuertarif 2024/2025.</p>
+                  </div>
+                  
+                  <div className="tax-info-item">
+                    <h4>🏥 Krankenversicherung</h4>
+                    <p>GKV-Beiträge werden automatisch berechnet (14,6% + 1,3% Zusatzbeitrag). Bei geringem Einkommen gilt das Mindesteinkommen von 1.131,67 € monatlich.</p>
+                  </div>
+                  
+                  <div className="tax-info-item">
+                    <h4>🏠 Immobilieneinkünfte</h4>
+                    <p>Mieteinnahmen werden separat versteuert. AfA-Abschreibungen reduzieren die Steuerlast, nicht aber den Cashflow.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Ausgaben-Analyse */}
+              <div className="form-section info-section">
+                <h2>📊 Ausgaben-Analyse</h2>
+                <div className="expense-analysis">
+                  <div className="analysis-item">
+                    <h4>📈 Inflationsanpassung</h4>
+                    <p>Variable Kosten (Lebensmittel, Freizeit) werden jährlich um die Ausgabenwachstumsrate angepasst, um der Inflation zu folgen.</p>
+                  </div>
+                  
+                  <div className="analysis-item">
+                    <h4>🏠 Wohnkosten-Anteil</h4>
+                    <p>Empfehlung: max. 30-40% der Gesamtausgaben für Wohnkosten</p>
+                  </div>
+                  
+                  <div className="analysis-item">
+                    <h4>⚖️ Fix- vs. Variable Kosten</h4>
+                    <p>Ein höherer Anteil variabler Kosten bietet mehr Flexibilität bei wirtschaftlichen Schwankungen</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Immobilien-Tipps */}
+              <div className="form-section info-section">
+                <h2>💡 Immobilien-Analyse</h2>
+                <div className="tips-grid">
+                  <div className="tip-item">
+                    <h4>🎯 Rendite-Bewertung</h4>
+                    <p>
+                      <strong>Brutto-Mietrendite:</strong> (Jahresmiete ÷ Kaufpreis) × 100
+                      <br />
+                      <strong>Netto-Mietrendite:</strong> Nach Abzug aller Kosten
+                      <br />
+                      <small>Richtwerte: 4-6% brutto, 2-4% netto</small>
+                    </p>
+                  </div>
+                  
+                  <div className="tip-item">
+                    <h4>🔧 Instandhaltungskosten</h4>
+                    <p>
+                      Faustregeln für jährliche Instandhaltung:
+                      <br />• Neubau: 0,5-1% des Immobilienwerts
+                      <br />• Bestand: 1,5-2,5% des Immobilienwerts
+                      <br />• Altbau: 2-4% des Immobilienwerts
+                    </p>
+                  </div>
+                  
+                  <div className="tip-item">
+                    <h4>📊 AfA-Optimierung</h4>
+                    <p>
+                      <strong>Standard-AfA:</strong> 2% linear über 50 Jahre
+                      <br />
+                      <strong>Denkmalschutz:</strong> Bis zu 9% in ersten 8 Jahren
+                      <br />
+                      <small>AfA reduziert nur Steuern, nicht den Cashflow!</small>
+                    </p>
+                  </div>
+                  
+                  <div className="tip-item">
+                    <h4>🏠 Diversifikation</h4>
+                    <p>
+                      Risiken streuen durch:
+                      <br />• Verschiedene Lagen
+                      <br />• Unterschiedliche Objekttypen
+                      <br />• Mehrere Mieter
+                      <br />• Mix aus Wohn- und Gewerbeimmobilien
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Technische Details */}
+              <div className="form-section info-section">
+                <h2>🔢 Technische Berechnungsdetails</h2>
+                
+                <div className="methodology-section">
+                  <h3>💰 Einkommensteuer-Berechnung</h3>
+                  <p>Progressiver Steuertarif 2024/2025:</p>
+                  <ul>
+                    <li>Grundfreibetrag: 11.604 € jährlich</li>
+                    <li>Eingangssteuersatz: 14%</li>
+                    <li>Spitzensteuersatz: 42% (ab 66.761 €)</li>
+                    <li>Reichensteuersatz: 45% (ab 277.826 €)</li>
+                    <li>Solidaritätszuschlag: 5,5% (ab Freigrenze)</li>
+                  </ul>
+                </div>
+
+                <div className="methodology-section">
+                  <h3>🏥 Gesetzliche Krankenversicherung</h3>
+                  <p>Berechnung nach aktuellen Sätzen:</p>
+                  <ul>
+                    <li>Allgemeiner Beitragssatz: 14,6%</li>
+                    <li>Zusatzbeitrag: 1,3% (durchschnittlich)</li>
+                    <li>Mindesteinkommen: 1.131,67 € monatlich</li>
+                    <li>Beitragsbemessungsgrenze: 5.175 € monatlich</li>
+                  </ul>
+                </div>
+
+                <div className="methodology-section">
+                  <h3>🏠 Immobilien-AfA</h3>
+                  <p>Abschreibung für Abnutzung:</p>
+                  <ul>
+                    <li>Basis: Kaufpreis minus Grundstückswert</li>
+                    <li>Standard-Satz: 2% linear</li>
+                    <li>Nur steuerlich wirksam, nicht cashflow-relevant</li>
+                  </ul>
+                </div>
+
+                <div className="methodology-section">
+                  <h3>📈 Inflations- und Wachstumsanpassungen</h3>
+                  <ul>
+                    <li>Einnahmen: Jährliche Steigerung nach Einkommenswachstumsrate</li>
+                    <li>Ausgaben: Jährliche Steigerung nach Ausgabenwachstumsrate</li>
+                    <li>Immobilienwerte: Standardmäßig 2% p.a.</li>
+                    <li>Cash-Zinsen: Monatlich auf aktuellen Bestand</li>
+                  </ul>
+                </div>
+
+                <div className="methodology-section">
+                  <h3>🎯 Stress-Tests</h3>
+                  <p>Verschiedene Szenarien werden automatisch berechnet:</p>
+                  <ul>
+                    <li>Basisszenario: Aktuelle Annahmen</li>
+                    <li>Inflationsszenario: +2% Inflation</li>
+                    <li>Niedrigzins: -1% Sparrendite</li>
+                    <li>Kombiniert: Beide Faktoren gemeinsam</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
     </div>
   );
 };
