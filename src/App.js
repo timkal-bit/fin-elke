@@ -1,11 +1,11 @@
 import React from 'react';
-import Finanzrechner from './components/Finanzrechner';
+import FinanzplanungElke from './components/FinanzplanungElke';
 import './App.css';
 
 function App() {
   return (
     <div className="App">
-      <Finanzrechner />
+      <FinanzplanungElke />
     </div>
   );
 }
