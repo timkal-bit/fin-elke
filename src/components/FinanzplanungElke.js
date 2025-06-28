@@ -306,20 +306,26 @@ const FinanzplanungElke = () => {
             />
           </div>
           <div className="time-range-container">
-            <label htmlFor="time-range">Zeitraum:</label>
-            <select
+            <label htmlFor="time-range">Zeitraum (Jahre):</label>
+            <input
               id="time-range"
-              value={timeRange}
-              onChange={(e) => setTimeRange(parseInt(e.target.value))}
-              className="time-range-select"
-            >
-              <option value={60}>5 Jahre</option>
-              <option value={120}>10 Jahre</option>
-              <option value={180}>15 Jahre</option>
-              <option value={240}>20 Jahre</option>
-              <option value={300}>25 Jahre</option>
-              <option value={360}>30 Jahre</option>
-            </select>
+              type="number"
+              min="1"
+              max="50"
+              value={Math.floor(timeRange / 12)}
+              onChange={(e) => setTimeRange((parseInt(e.target.value) || 10) * 12)}
+              className="time-range-input"
+            />
+          </div>
+          <div className="end-age-container">
+            <label htmlFor="end-age">Lebensalter:</label>
+            <input
+              id="end-age"
+              type="number"
+              value={currentAge + Math.floor(timeRange / 12)}
+              readOnly
+              className="end-age-input"
+            />
           </div>
         </div>
       </header>
