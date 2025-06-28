@@ -2,6 +2,7 @@
   "name": "finanzrechner",
   "version": "0.1.0",
   "private": true,
+  "homepage": "https://timkal-bit.github.io/fin-elke",
   "dependencies": {
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
