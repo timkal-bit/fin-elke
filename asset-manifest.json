@@ -1,15 +1,15 @@
 {
   "files": {
-    "main.css": "/fin-elke/static/css/main.933d30c9.css",
+    "main.css": "/fin-elke/static/css/main.c5e5206a.css",
     "main.js": "/fin-elke/static/js/main.45b6e52d.js",
     "static/js/453.3351ccd9.chunk.js": "/fin-elke/static/js/453.3351ccd9.chunk.js",
     "index.html": "/fin-elke/index.html",
-    "main.933d30c9.css.map": "/fin-elke/static/css/main.933d30c9.css.map",
+    "main.c5e5206a.css.map": "/fin-elke/static/css/main.c5e5206a.css.map",
     "main.45b6e52d.js.map": "/fin-elke/static/js/main.45b6e52d.js.map",
     "453.3351ccd9.chunk.js.map": "/fin-elke/static/js/453.3351ccd9.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.933d30c9.css",
+    "static/css/main.c5e5206a.css",
     "static/js/main.45b6e52d.js"
   ]
 }
