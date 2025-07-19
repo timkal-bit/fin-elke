@@ -107,7 +107,7 @@ const AusgabenSection = ({ data, onChange }) => {
           </div>
         </div>
 
-        <div className="info-box">
+        <div className="info-box info-box-dark">
           <h4>🏥 Gesetzliche Krankenversicherung (GKV)</h4>
           <p>
             Die GKV wird automatisch berechnet basierend auf Ihrem Gesamteinkommen:
